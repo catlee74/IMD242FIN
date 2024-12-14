@@ -148,6 +148,22 @@ function draw() {
     let thumbX = (thumb.x * width) / video.width;
     let thumbY = (thumb.y * height) / video.height;
 
+    let fingerX = (indexX + thumbX) / 2;
+    let fingerY = (indexY + thumbY) / 2;
+    let distBetweenFingers = dist(indexX, indexY, thumbX, thumbY);
+    for (let body of stack.bodies) {
+      let bodyX = body.position.x;
+      let bodyY = body.position.y;
+
+      // 중간 지점과 도형 중심 간 거리
+      let distToBody = dist(fingerX, fingerY, bodyX, bodyY);
+
+      // 손가락 닿음 조건 (두 손가락이 가까워지고 도형 중심과 손가락 중간 지점이 가까움)
+      if (distBetweenFingers < 50 && distToBody < 50) {
+        Body.setPosition(body, { x: fingerX, y: fingerY });
+      }
+    }
+
     //검지
     fill(255, 0, 0, 100);
     stroke(255, 0, 0);
