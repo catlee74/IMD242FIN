@@ -48,6 +48,7 @@ function setup() {
   // createCanvas를 제외한 나머지 구문을 여기 혹은 init()에 작성.
 
   video = createCapture(VIDEO, { flipped: true });
+  video.size(width, height);
   video.hide();
 
   anyEngine = Engine.create();
@@ -108,7 +109,6 @@ function init() {}
 function draw() {
   background(220);
   image(video, 0, 0, width, height);
-
   Engine.update(anyEngine);
   // drawMatterObjects();
 
@@ -131,6 +131,11 @@ function draw() {
 
     drawBody(body);
   }
+  // 벽 그리기
+  for (let wall of walls) {
+    fill('#F7F6EB');
+    drawBody(wall);
+  }
 
   if (hands.length > 0) {
     //검지
@@ -138,19 +143,19 @@ function draw() {
     //엄지
     let thumb = hands[0].keypoints[4];
 
-    //검지 좌표 조정
-    //기존에 640*480비율에서 작업하던 것을 옮겨오니 원래는 괜찮았는데 여기에서 실행하니 손이랑 원이 따로 논다.
-    //그래서 gpt사용하여 원의 위치 조정함
-    let indexX = (index.x * width) / video.width;
-    let indexY = (index.y * height) / video.height;
+    // //검지 좌표 조정
+    // //기존에 640*480비율에서 작업하던 것을 옮겨오니 원래는 괜찮았는데 여기에서 실행하니 손이랑 원이 따로 논다.
+    // //그래서 gpt사용하여 원의 위치 조정함
+    // let indexX = (index.x * width) / video.width;
+    // let indexY = (index.y * height) / video.height;
 
-    //엄지 좌표 조정
-    let thumbX = (thumb.x * width) / video.width;
-    let thumbY = (thumb.y * height) / video.height;
+    // // 엄지 좌표 조정
+    // let thumbX = (thumb.x * width) / video.width;
+    // let thumbY = (thumb.y * height) / video.height;
 
-    let fingerX = (indexX + thumbX) / 2;
-    let fingerY = (indexY + thumbY) / 2;
-    let distBetweenFingers = dist(indexX, indexY, thumbX, thumbY);
+    let fingerX = (index.x + thumb.x) / 2;
+    let fingerY = (index.y + thumb.y) / 2;
+    let distBetweenFingers = dist(index.x, index.y, thumb.x, thumb.y);
     for (let body of stack.bodies) {
       let bodyX = body.position.x;
       let bodyY = body.position.y;
@@ -168,21 +173,19 @@ function draw() {
     fill(255, 0, 0, 100);
     stroke(255, 0, 0);
     strokeWeight(2);
-    ellipse(indexX, indexY, 16, 16);
+    ellipse(index.x, index.y, 16, 16);
     // text('index', index.x, index.y);
 
     //엄지
     fill(255, 100);
     stroke(255);
     strokeWeight(2);
-    ellipse(thumbX, thumbY, 16, 16);
+    ellipse(thumb.x, thumb.y, 16, 16);
     // text('thumb', thumb.x, thumb.y);
   }
-  // 벽 그리기
-  for (let wall of walls) {
-    fill('#F7F6EB');
-    drawBody(wall);
-  }
+  fill(0);
+  text(`Canvas: ${width} x ${height}`, 10, 10);
+  text(`Video: ${video.width} x ${video.height}`, 10, 30);
 }
 
 //gpt사용
