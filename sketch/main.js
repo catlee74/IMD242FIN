@@ -17,6 +17,10 @@ let video;
 let handPose;
 let hands = [];
 
+//임시시
+let isHolding = false;
+let heldBody = null;
+
 function preload() {
   handPose = ml5.handPose({ flipped: true });
 }
@@ -55,7 +59,7 @@ function setup() {
   world = anyEngine.world;
 
   //matter 도형 추가
-  stack = Composites.stack(width * 0.25, 20, 10, 5, 0, 0, function (x, y) {
+  stack = Composites.stack(width * 0.25, 20, 5, 3, 0, 0, function (x, y) {
     //도형이 배치될 x좌표,도형이 배치될 y좌표,x축으로 배치될 도형 개수, y축으로 배치될 도형 개수, 도형간의 x축 간격, 도형간의 y축 간격
     let sides = Math.round(Common.random(1, 8));
     //도형 몇개의 변 가질지 랜덤으로 정함
@@ -73,8 +77,8 @@ function setup() {
       return Bodies.rectangle(
         x,
         y,
-        Common.random(50, 100),
-        Common.random(50, 100),
+        Common.random(70, 100),
+        Common.random(70, 100),
         // Common.random(25, 50),
         // Common.random(25, 50),
         { chamfer: chamfer }
@@ -101,13 +105,15 @@ function setup() {
 
   //비디오를 통해 실시간으로 손 감지
   handPose.detectStart(video, gotHands);
+  // handPose.detect(video, gotHands);
 }
 
 // windowResized()에서 setup()에 준하는 구문을 실행해야할 경우를 대비해 init이라는 명칭의 함수를 만들어 둠.
 function init() {}
 
 function draw() {
-  background(220);
+  // background(220);
+  clear();
   image(video, 0, 0, width, height);
   Engine.update(anyEngine);
   // drawMatterObjects();
@@ -165,7 +171,20 @@ function draw() {
 
       // 손가락 닿음 조건 (두 손가락이 가까워지고 도형 중심과 손가락 중간 지점이 가까움)
       if (distBetweenFingers < 50 && distToBody < 50) {
-        Body.setPosition(body, { x: fingerX, y: fingerY });
+        if (!isHolding) {
+          // 도형을 잡은 순간
+          isHolding = true;
+          heldBody = body;
+        }
+      }
+      if (isHolding && heldBody) {
+        Body.setPosition(heldBody, { x: fingerX, y: fingerY });
+      }
+
+      // 손가락을 떼면 도형을 놓음
+      if (distBetweenFingers > 60 && isHolding) {
+        isHolding = false;
+        heldBody = null; // 도형을 놓음
       }
     }
 
@@ -184,6 +203,7 @@ function draw() {
     // text('thumb', thumb.x, thumb.y);
   }
   fill(0);
+  noStroke();
   text(`Canvas: ${width} x ${height}`, 10, 10);
   text(`Video: ${video.width} x ${video.height}`, 10, 30);
 }
