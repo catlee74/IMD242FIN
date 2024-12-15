@@ -1,3 +1,7 @@
+//손 감지와 도형잡기는 아래 강의를 참고했습니다
+//p5.js Coding Tutorial | Interactive Fridge Magnets (with ml5.js - handPose)
+//유튜브 링크: https://youtu.be/72pAzuD8tqE?si=manU6aHcHfp1_1N3
+
 // 종횡비를 고정하고 싶을 경우: 아래 두 변수를 0이 아닌 원하는 종, 횡 비율값으로 설정.
 // 종횡비를 고정하고 싶지 않을 경우: 아래 두 변수 중 어느 하나라도 0으로 설정.
 const aspectW = 4;
@@ -6,8 +10,6 @@ const aspectH = 3;
 const container = document.body.querySelector('.container-canvas');
 // 필요에 따라 이하에 변수 생성.
 
-// const { Engine, Render, Runner, Composites, Common, Composite, Bodies } =
-//   Matter;
 const { Engine, Composites, Common, Composite, Bodies, Body, Vector } = Matter;
 let anyEngine, world;
 let stack,
@@ -17,9 +19,11 @@ let video;
 let handPose;
 let hands = [];
 
-//임시시
-let isHolding = false;
+//손가락 잡는 거
+let holding = false;
 let heldBody = null;
+
+let reverseGravity = false;
 
 function preload() {
   handPose = ml5.handPose({ flipped: true });
@@ -59,40 +63,42 @@ function setup() {
   world = anyEngine.world;
 
   //matter 도형 추가
-  stack = Composites.stack(width * 0.25, 20, 5, 3, 0, 0, function (x, y) {
+  stack = Composites.stack(width * 0.25, 20, 8, 4, 0, 0, function (x, y) {
     //도형이 배치될 x좌표,도형이 배치될 y좌표,x축으로 배치될 도형 개수, y축으로 배치될 도형 개수, 도형간의 x축 간격, 도형간의 y축 간격
     let sides = Math.round(Common.random(1, 8));
     //도형 몇개의 변 가질지 랜덤으로 정함
 
-    //도형 모서리 둥글게 만들기
+    //matter.js 코드 정리를 하고 p5js코드에 넣으니 오류가 나서 코드를 변형해달라고 gpt에게 부탁, if문 3개로 나눠놓은 코드를 제시하길래 else if, else로 정리했습니다.
     let chamfer = null;
+    //도형 모서리 둥글게 만들기 위한 변수수. 초기값은 null
     if (sides > 2 && Common.random() > 0.7) {
-      //삼각형 이상일 때
+      //삼각형 이상일 때, 30%의 확률로
       chamfer = {
         radius: 10,
+        //모서리 둥글게
       };
-    }
-
-    if (Math.round(Common.random(0, 1)) === 0) {
+    } else if (Math.round(Common.random(0, 1))) {
+      //50%의 확률
       return Bodies.rectangle(
         x,
         y,
         Common.random(70, 100),
         Common.random(70, 100),
-        // Common.random(25, 50),
-        // Common.random(25, 50),
         { chamfer: chamfer }
+        //조건이 참이면 사각형
       );
     } else {
       return Bodies.polygon(x, y, sides, Common.random(40, 60), {
         //기존 (25,50)
         chamfer: chamfer,
+        //조건 거짓이면 다각형
       });
     }
   });
   Composite.add(world, stack);
 
-  //벽
+  //상하좌우 벽
+  //교수님 올려주신 동영상을 보고 했습니다.
   walls.push(
     Bodies.rectangle(width * 0.5, height, 10000, 50, { isStatic: true })
   );
@@ -105,110 +111,137 @@ function setup() {
 
   //비디오를 통해 실시간으로 손 감지
   handPose.detectStart(video, gotHands);
-  // handPose.detect(video, gotHands);
 }
 
 // windowResized()에서 setup()에 준하는 구문을 실행해야할 경우를 대비해 init이라는 명칭의 함수를 만들어 둠.
 function init() {}
 
 function draw() {
-  // background(220);
-  clear();
-  image(video, 0, 0, width, height);
-  Engine.update(anyEngine);
-  // drawMatterObjects();
+  // clear();
 
+  image(video, 0, 0, width, height);
+  background(0, 150);
+  Engine.update(anyEngine);
+
+  //gpt 사용
   noStroke();
   for (let body of stack.bodies) {
     if (body.circleRadius) {
       // 원
-      // fill('#FD5523');
-      fill('#FF855A');
+
+      fill('#E85234');
+      // fill('#FF855A');
     } else if (body.vertices && body.vertices.length === 3) {
       // 세모
-      fill('#D1D175');
+      fill('#96ADD6');
     } else if (body.vertices && body.vertices.length === 4) {
       // 네모
-      fill('#FFF4C5');
+      fill('#E8E4C8');
     } else if (body.vertices) {
-      // 그 외의 다각형
-      fill('#A5B7E5');
+      // 다각형
+      fill('#F9B8AF');
     }
 
     drawBody(body);
   }
   // 벽 그리기
   for (let wall of walls) {
-    fill('#F7F6EB');
+    fill('#F2EEE9');
     drawBody(wall);
   }
 
   if (hands.length > 0) {
-    //검지
-    let index = hands[0].keypoints[8];
-    //엄지
-    let thumb = hands[0].keypoints[4];
+    let hand0 = hands[0];
+    let hand1 = hands[1];
+    if (hand0) {
+      //검지
+      let index0 = hands[0].keypoints[8];
+      //엄지
+      let thumb0 = hands[0].keypoints[4];
 
-    // //검지 좌표 조정
-    // //기존에 640*480비율에서 작업하던 것을 옮겨오니 원래는 괜찮았는데 여기에서 실행하니 손이랑 원이 따로 논다.
-    // //그래서 gpt사용하여 원의 위치 조정함
-    // let indexX = (index.x * width) / video.width;
-    // let indexY = (index.y * height) / video.height;
+      //여기서부터 patt vira의 강의에서 나온 코드를 복사한 후
+      //gpt에게 엄지와 검지가 닿을 때 텍스트 박스를 잡을 수 있는 원리를 분석해 달라고 하고,
+      //지금 p5js에 나온 코드에 적용할 수 있게 변환해달라고 했습니다.
+      let fingerX = (index0.x + thumb0.x) / 2;
+      let fingerY = (index0.y + thumb0.y) / 2;
+      //두 손가락 중앙 위치 계산
+      let distBetweenFingers = dist(index0.x, index0.y, thumb0.x, thumb0.y);
 
-    // // 엄지 좌표 조정
-    // let thumbX = (thumb.x * width) / video.width;
-    // let thumbY = (thumb.y * height) / video.height;
+      if (index0.y < height / 3) {
+        reverseGravity = true; // 상단에 있으면 중력 반전
+      } else if (index0.y > (height * 2) / 3) {
+        reverseGravity = false; // 하단에 있으면 원래 중력으로
+      }
 
-    let fingerX = (index.x + thumb.x) / 2;
-    let fingerY = (index.y + thumb.y) / 2;
-    let distBetweenFingers = dist(index.x, index.y, thumb.x, thumb.y);
-    for (let body of stack.bodies) {
-      let bodyX = body.position.x;
-      let bodyY = body.position.y;
+      //엄지 검지 사이 거리 계산
+      for (let body of stack.bodies) {
+        let bodyX = body.position.x;
+        let bodyY = body.position.y;
 
-      // 중간 지점과 도형 중심 간 거리
-      let distToBody = dist(fingerX, fingerY, bodyX, bodyY);
+        let distToBody = dist(fingerX, fingerY, bodyX, bodyY);
 
-      // 손가락 닿음 조건 (두 손가락이 가까워지고 도형 중심과 손가락 중간 지점이 가까움)
-      if (distBetweenFingers < 50 && distToBody < 50) {
-        if (!isHolding) {
-          // 도형을 잡은 순간
-          isHolding = true;
-          heldBody = body;
+        // 손가락 닿음 조건
+        if (distBetweenFingers < 40 && distToBody < 40) {
+          if (!holding) {
+            holding = true;
+            heldBody = body;
+          }
+        }
+        if (holding && heldBody) {
+          Body.setPosition(heldBody, { x: fingerX, y: fingerY });
+        }
+
+        // 손가락을 떼면 도형을 놓음
+        //손가락 사이 거리 45px 이상일 때때
+        if (distBetweenFingers > 45 && holding) {
+          holding = false;
+          heldBody = null;
         }
       }
-      if (isHolding && heldBody) {
-        Body.setPosition(heldBody, { x: fingerX, y: fingerY });
-      }
 
-      // 손가락을 떼면 도형을 놓음
-      if (distBetweenFingers > 60 && isHolding) {
-        isHolding = false;
-        heldBody = null; // 도형을 놓음
+      //검지
+      fill(255, 0, 0, 100);
+      stroke(255, 0, 0);
+      strokeWeight(2);
+      ellipse(index0.x, index0.y, 16, 16);
+
+      //엄지
+      //gpt사용
+      if (distBetweenFingers < 40) {
+        fill(255, 0, 0, 100);
+        stroke(255, 0, 0);
+      } else {
+        fill(255, 100);
+        stroke(255);
       }
+      strokeWeight(2);
+      ellipse(thumb0.x, thumb0.y, 16, 16);
     }
 
-    //검지
-    fill(255, 0, 0, 100);
-    stroke(255, 0, 0);
-    strokeWeight(2);
-    ellipse(index.x, index.y, 16, 16);
-    // text('index', index.x, index.y);
-
-    //엄지
-    fill(255, 100);
-    stroke(255);
-    strokeWeight(2);
-    ellipse(thumb.x, thumb.y, 16, 16);
-    // text('thumb', thumb.x, thumb.y);
+    //두 번째 손가락의 검지의 y위치에 따라 중력이 바뀌도록 함
+    //gpt사용
+    if (hand1) {
+      let index1 = hand1.keypoints[8];
+      if (index1.y < height * 0.5) {
+        reverseGravity = true;
+      } else {
+        reverseGravity = false;
+      }
+      if (reverseGravity) {
+        anyEngine.world.gravity.y = -1;
+      } else {
+        anyEngine.world.gravity.y = 1;
+      }
+      fill(0, 255, 0, 100);
+      stroke(0, 255, 0);
+      strokeWeight(2);
+      ellipse(index1.x, index1.y, 16, 16);
+    }
   }
-  fill(0);
-  noStroke();
-  text(`Canvas: ${width} x ${height}`, 10, 10);
-  text(`Video: ${video.width} x ${video.height}`, 10, 30);
 }
 
 //gpt사용
+//matter도형 그리기
 function drawBody(body) {
   const vertices = body.vertices;
   beginShape();
@@ -218,11 +251,13 @@ function drawBody(body) {
   endShape(CLOSE);
 }
 
-//gotHands는 matter다 그리고 그 후에 있어야 충돌이 안생겨서
+//gotHands는 matter그린 다음에 있어야 충돌이 안생겨서
 //손 감지될 때 도형이 안보이고 하는 문제가 안생긴다
 function gotHands(results) {
   //이 친구가 있어야 손 데이터를 받아서 화면에 표시 가능
-  hands = results;
+  hands[0] = results[0];
+  hands[1] = results[1];
+  // hands = results;
 }
 
 function windowResized() {
