@@ -63,7 +63,7 @@ function setup() {
   world = anyEngine.world;
 
   //matter 도형 추가
-  stack = Composites.stack(width * 0.25, 20, 10, 5, 0, 0, function (x, y) {
+  stack = Composites.stack(width * 0.25, 20, 8, 4, 0, 0, function (x, y) {
     //도형이 배치될 x좌표,도형이 배치될 y좌표,x축으로 배치될 도형 개수, y축으로 배치될 도형 개수, 도형간의 x축 간격, 도형간의 y축 간격
     let sides = Math.round(Common.random(1, 8));
     //도형 몇개의 변 가질지 랜덤으로 정함
