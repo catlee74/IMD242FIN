@@ -120,7 +120,8 @@ function draw() {
   // clear();
 
   image(video, 0, 0, width, height);
-  background(0, 150);
+  background(0, 80);
+  // background(242, 240, 222, 150);
   Engine.update(anyEngine);
 
   //gpt 사용
@@ -129,16 +130,19 @@ function draw() {
     if (body.circleRadius) {
       // 원
 
-      fill('#E85234');
-      // fill('#FF855A');
+      // fill('#E85234');
+      fill('#FF6446');
     } else if (body.vertices && body.vertices.length === 3) {
       // 세모
+      // fill('#D653E8');
       fill('#96ADD6');
     } else if (body.vertices && body.vertices.length === 4) {
       // 네모
+      // fill('#D7E7FF');
       fill('#E8E4C8');
     } else if (body.vertices) {
       // 다각형
+      // fill('#D1D175');
       fill('#F9B8AF');
     }
 
@@ -146,7 +150,8 @@ function draw() {
   }
   // 벽 그리기
   for (let wall of walls) {
-    fill('#F2EEE9');
+    // fill('#96ADD6');
+    fill('#FFF2E6');
     drawBody(wall);
   }
 
